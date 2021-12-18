@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import twitterLogo from "./assets/twitter-logo.svg";
 import "./App.css";
 import SelectCharacter from "./Components/SelectCharacter";
+import { CONTRACT_ADDRESS, transformCharacterData } from "./constants.js";
+import Arena from "./Components/Arena/index.js";
+import myEpicGame from "./utils/MyEpicGame.json";
 
 // Constants
 const TWITTER_HANDLE = "_buildspace";
@@ -72,6 +76,10 @@ const App = () => {
        */
     } else if (currentAccount && !characterNFT) {
       return <SelectCharacter setCharacterNFT={setCharacterNFT} />;
+    } else if (currentAccount && characterNFT) {
+      return (
+        <Arena characterNFT={characterNFT} setCharacterNFT={setCharacterNFT} />
+      );
     }
   };
 
@@ -104,9 +112,52 @@ const App = () => {
     }
   };
 
+  const checkNetwork = async () => {
+    try {
+      if (window.ethereum.networkVersion !== "4") {
+        alert("Please connect to Rinkeby!");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   useEffect(() => {
     checkIfWalletIsConnected();
   }, []);
+
+  useEffect(() => {
+    /*
+     * The function we will call that interacts with out smart contract
+     */
+    const fetchNFTMetadata = async () => {
+      console.log("Checking for Character NFT on address:", currentAccount);
+
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const gameContract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        myEpicGame.abi,
+        signer
+      );
+
+      const txn = await gameContract.checkIfUserHasNFT();
+      if (txn.name) {
+        console.log("User has character NFT");
+        setCharacterNFT(transformCharacterData(txn));
+      } else {
+        console.log("No character NFT found");
+      }
+    };
+
+    /*
+     * We only want to run this, if we have a connected wallet
+     */
+    if (currentAccount) {
+      console.log("CurrentAccount:", currentAccount);
+      fetchNFTMetadata();
+    }
+  }, [currentAccount]);
   return (
     <div className="App">
       <div className="container">
